@@ -15,7 +15,7 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/filesystem": "^7.0.0",
     "@capacitor/share": "^7.0.0",
-    "capacitor-voice-recorder": "file:./capacitor-voice-recorder"
+    "capacitor-voice-recorder": "file:../capacitor-voice-recorder"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",

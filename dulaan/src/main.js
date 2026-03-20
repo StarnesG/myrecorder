@@ -1,31 +1,23 @@
 import { VoiceRecorder } from 'capacitor-voice-recorder';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-
 // ── DOM refs ──────────────────────────────────────────────────────────────────
-const btnRecord = document.getElementById('btn-record') as HTMLButtonElement;
-const btnLabel = document.getElementById('btn-label') as HTMLSpanElement;
-const statusEl = document.getElementById('status') as HTMLParagraphElement;
-const timerEl = document.getElementById('timer') as HTMLParagraphElement;
-const recordingsList = document.getElementById('recordings-list') as HTMLUListElement;
-const emptyHint = document.getElementById('empty-hint') as HTMLLIElement;
+const btnRecord = document.getElementById('btn-record');
+const btnLabel = document.getElementById('btn-label');
+const statusEl = document.getElementById('status');
+const timerEl = document.getElementById('timer');
+const recordingsList = document.getElementById('recordings-list');
+const emptyHint = document.getElementById('empty-hint');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let isRecording = false;
-let timerInterval: ReturnType<typeof setInterval> | null = null;
+let timerInterval = null;
 let elapsedSeconds = 0;
 
-interface RecordingEntry {
-  name: string;
-  base64: string;
-  mimeType: string;
-  duration: number;
-}
-
-const recordings: RecordingEntry[] = [];
+const recordings = [];
 
 // ── Timer helpers ─────────────────────────────────────────────────────────────
-function formatTime(seconds: number): string {
+function formatTime(seconds) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
   const s = (seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
@@ -48,7 +40,7 @@ function stopTimer() {
 }
 
 // ── UI state ──────────────────────────────────────────────────────────────────
-function setRecordingUI(recording: boolean) {
+function setRecordingUI(recording) {
   isRecording = recording;
   btnRecord.textContent = recording ? '⏹' : '🎙';
   btnRecord.classList.toggle('recording', recording);
@@ -57,12 +49,12 @@ function setRecordingUI(recording: boolean) {
   statusEl.textContent = recording ? '正在录音...' : '准备就绪';
 }
 
-function setStatus(msg: string) {
+function setStatus(msg) {
   statusEl.textContent = msg;
 }
 
 // ── Recordings list ───────────────────────────────────────────────────────────
-function addRecordingToList(entry: RecordingEntry) {
+function addRecordingToList(entry) {
   const li = document.createElement('li');
   li.className = 'recording-item';
 
@@ -92,7 +84,7 @@ function addRecordingToList(entry: RecordingEntry) {
   recordingsList.appendChild(li);
 }
 
-async function saveRecording(entry: RecordingEntry) {
+async function saveRecording(entry) {
   try {
     setStatus('正在保存...');
 
@@ -119,7 +111,7 @@ async function saveRecording(entry: RecordingEntry) {
 }
 
 // ── Permission ────────────────────────────────────────────────────────────────
-async function ensurePermission(): Promise<boolean> {
+async function ensurePermission() {
   const { value: canRecord } = await VoiceRecorder.canDeviceVoiceRecord();
   if (!canRecord) {
     setStatus('此设备不支持录音');
@@ -146,7 +138,7 @@ async function startRecording() {
     await VoiceRecorder.startRecording();
     setRecordingUI(true);
     startTimer();
-  } catch (err: any) {
+  } catch (err) {
     console.error('startRecording error:', err);
     setStatus(`录音启动失败: ${err?.message ?? err}`);
   }
@@ -173,7 +165,7 @@ async function stopRecording() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = `recording-${timestamp}.${ext}`;
 
-    const entry: RecordingEntry = {
+    const entry = {
       name: filename,
       base64: value.recordDataBase64,
       mimeType: value.mimeType,
@@ -184,7 +176,7 @@ async function stopRecording() {
     emptyHint.style.display = 'none';
     addRecordingToList(entry);
     setStatus('录音完成');
-  } catch (err: any) {
+  } catch (err) {
     console.error('stopRecording error:', err);
     setRecordingUI(false);
     setStatus(`录音停止失败: ${err?.message ?? err}`);
