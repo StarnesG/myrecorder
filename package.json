@@ -1,29 +1,24 @@
 {
-  "name": "capacitor-app",
+  "name": "myrecorder",
   "version": "1.0.0",
-  "description": "An Amazing Capacitor App",
+  "description": "iOS voice recorder app built with Capacitor and Vite",
   "type": "module",
-  "keywords": [
-    "capacitor",
-    "mobile"
-  ],
   "scripts": {
-    "start": "vite",
+    "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npx cap sync ios",
+    "cap:open": "npx cap open ios"
   },
   "dependencies": {
-    "@capacitor-community/bluetooth-le": "^7.0.0",
-    "@capacitor/android": "^7.1.0",
-    "@capacitor/camera": "latest",
-    "@capacitor/core": "latest",
-    "@capacitor/ios": "^7.6.0",
-    "@capacitor/preferences": "^7.0.2",
-    "@capacitor/splash-screen": "latest",
-    "capacitor-voice-recorder": "file:../capacitor-voice-recorder"
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/filesystem": "^7.0.0",
+    "@capacitor/share": "^7.0.0",
+    "capacitor-voice-recorder": "file:./capacitor-voice-recorder"
   },
   "devDependencies": {
-    "@capacitor/cli": "latest",
+    "@capacitor/cli": "^7.0.0",
     "vite": "^5.4.2"
   },
   "author": "",

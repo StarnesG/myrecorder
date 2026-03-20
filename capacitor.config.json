@@ -1,19 +1,13 @@
 {
   "appId": "com.testrecord.app",
-  "appName": "myrecord",
+  "appName": "myrecorder",
   "webDir": "dist",
+  "ios": {
+    "contentInset": "automatic"
+  },
   "plugins": {
     "SplashScreen": {
       "launchAutoHide": true
     }
-  },
-  "server": {
-    "androidScheme": "http",
-    "allowNavigation": [
-      "http://65.20.104.213:3333/*"
-    ],
-    "cleartext": true,
-    "hostname": "localhost"
-  },
-  "loggingBehavior": "debug"
+  }
 }

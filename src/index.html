@@ -1,4 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>录音机</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
+    :root {
+      --bg: #0f0f13;
+      --surface: #1c1c24;
+      --border: #2e2e3a;
+      --accent: #e53935;
+      --accent-glow: rgba(229, 57, 53, 0.35);
+      --text: #f0f0f5;
+      --text-muted: #8888a0;
+      --green: #43a047;
+      --radius: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: env(safe-area-inset-top, 20px) 20px env(safe-area-inset-bottom, 20px);
+    }
+
+    header {
+      width: 100%;
+      max-width: 480px;
+      padding: 24px 0 8px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Recorder card ── */
+    .recorder-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 24px 32px;
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* ── Waveform animation ── */
+    .waveform {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 48px;
+    }
+
+    .waveform span {
+      display: block;
+      width: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      height: 8px;
+      transition: background 0.3s;
+    }
+
+    body.recording .waveform span {
+      background: var(--accent);
+      animation: wave 1s ease-in-out infinite;
+    }
+
+    body.recording .waveform span:nth-child(1) { animation-delay: 0.0s; }
+    body.recording .waveform span:nth-child(2) { animation-delay: 0.1s; }
+    body.recording .waveform span:nth-child(3) { animation-delay: 0.2s; }
+    body.recording .waveform span:nth-child(4) { animation-delay: 0.3s; }
+    body.recording .waveform span:nth-child(5) { animation-delay: 0.15s; }
+    body.recording .waveform span:nth-child(6) { animation-delay: 0.05s; }
+    body.recording .waveform span:nth-child(7) { animation-delay: 0.25s; }
+
+    @keyframes wave {
+      0%, 100% { height: 8px; }
+      50%       { height: 40px; }
+    }
+
+    /* ── Timer ── */
+    #timer {
+      font-size: 48px;
+      font-weight: 200;
+      letter-spacing: 0.06em;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+
+    /* ── Status ── */
+    #status {
+      font-size: 14px;
+      color: var(--text-muted);
+      min-height: 20px;
+    }
+
+    /* ── Record button ── */
+    #btn-record {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 0 0 0 var(--accent-glow);
+    }
+
+    #btn-record:active {
+      transform: scale(0.93);
+    }
+
+    #btn-record.recording {
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+      50%       { box-shadow: 0 0 0 18px transparent; }
+    }
+
+    .btn-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: -8px;
+    }
+
+    /* ── Recordings list ── */
+    .recordings-section {
+      width: 100%;
+      max-width: 480px;
+      margin-top: 28px;
+    }
+
+    .recordings-section h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    #recordings-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .recording-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .recording-info {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-small {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-small:active {
+      background: var(--border);
+    }
+
+    .btn-save {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .empty-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>录音机</h1>
+  </header>
+
+  <div class="recorder-card">
+    <div class="waveform">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span>
+    </div>
+
+    <p id="timer">00:00</p>
+    <p id="status">准备就绪</p>
+
+    <button id="btn-record" aria-label="开始录音">🎙</button>
+    <span class="btn-label" id="btn-label">点击开始录音</span>
+  </div>
+
+  <section class="recordings-section">
+    <h2>录音列表</h2>
+    <ul id="recordings-list">
+      <li class="empty-hint" id="empty-hint">暂无录音</li>
+    </ul>
+  </section>
+
+  <script type="module" src="./main.ts"></script>
+</body>
 </html>
