@@ -39,7 +39,7 @@ myrecorder/
 npm install
 ```
 
-> `capacitor-voice-recorder` 以本地路径 `file:./capacitor-voice-recorder` 引用，`npm install` 会自动构建插件（触发其 `prepare` 脚本）。
+> `capacitor-voice-recorder` 以本地路径 `file:../capacitor-voice-recorder` 引用，`npm install` 会自动构建插件（触发其 `prepare` 脚本）。插件的 JS 代码**不会被 Vite 打包**，运行时通过 `window.Capacitor.Plugins.VoiceRecorder` 调用原生层，`cap sync` 负责将 iOS 原生代码注入 Xcode 项目。
 
 ### 2. 构建 Web 资源
 
@@ -137,7 +137,7 @@ npm run dev
 A: 检查 `Info.plist` 是否已添加 `NSMicrophoneUsageDescription`，缺少此项 iOS 会静默拒绝权限请求。
 
 **Q: `npm install` 报错，提示插件构建失败**  
-A: 进入 `capacitor-voice-recorder/` 目录手动执行 `npm install && npm run build`，再回到根目录重新 `npm install`。
+A: 进入 `../capacitor-voice-recorder/` 目录手动执行 `npm install && npm run build`，再回到 `dulaan/` 重新 `npm install`。
 
 **Q: `npx cap sync` 提示找不到 iOS 平台**  
 A: 先执行 `npx cap add ios`。

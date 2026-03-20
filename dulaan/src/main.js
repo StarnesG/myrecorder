@@ -1,26 +1,33 @@
-import { VoiceRecorder } from 'capacitor-voice-recorder';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
+// 通过 window.Capacitor.Plugins 访问插件，无需 import
+// Capacitor 在 iOS WebView 初始化时会将所有原生插件注册到此对象
+// 这样完全绕开 Vite/Rollup 的模块解析，也不依赖插件的 dist 构建产物
+
+function getPlugins() {
+  const plugins = window?.Capacitor?.Plugins;
+  if (!plugins) {
+    console.warn('Capacitor Plugins not available — running in browser without native support');
+    return null;
+  }
+  return plugins;
+}
+
 // ── DOM refs ──────────────────────────────────────────────────────────────────
-const btnRecord = document.getElementById('btn-record');
-const btnLabel = document.getElementById('btn-label');
-const statusEl = document.getElementById('status');
-const timerEl = document.getElementById('timer');
-const recordingsList = document.getElementById('recordings-list');
-const emptyHint = document.getElementById('empty-hint');
+const btnRecord  = document.getElementById('btn-record');
+const btnLabel   = document.getElementById('btn-label');
+const statusEl   = document.getElementById('status');
+const timerEl    = document.getElementById('timer');
+const recList    = document.getElementById('recordings-list');
+const emptyHint  = document.getElementById('empty-hint');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let isRecording = false;
-let timerInterval = null;
+let isRecording    = false;
+let timerInterval  = null;
 let elapsedSeconds = 0;
+const recordings   = [];
 
-const recordings = [];
-
-// ── Timer helpers ─────────────────────────────────────────────────────────────
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-  const s = (seconds % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
+// ── Timer ─────────────────────────────────────────────────────────────────────
+function fmt(sec) {
+  return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 }
 
 function startTimer() {
@@ -28,25 +35,23 @@ function startTimer() {
   timerEl.textContent = '00:00';
   timerInterval = setInterval(() => {
     elapsedSeconds++;
-    timerEl.textContent = formatTime(elapsedSeconds);
+    timerEl.textContent = fmt(elapsedSeconds);
   }, 1000);
 }
 
 function stopTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
+  clearInterval(timerInterval);
+  timerInterval = null;
 }
 
-// ── UI state ──────────────────────────────────────────────────────────────────
+// ── UI ────────────────────────────────────────────────────────────────────────
 function setRecordingUI(recording) {
   isRecording = recording;
   btnRecord.textContent = recording ? '⏹' : '🎙';
   btnRecord.classList.toggle('recording', recording);
-  btnLabel.textContent = recording ? '点击停止录音' : '点击开始录音';
+  btnLabel.textContent  = recording ? '点击停止录音' : '点击开始录音';
   document.body.classList.toggle('recording', recording);
-  statusEl.textContent = recording ? '正在录音...' : '准备就绪';
+  statusEl.textContent  = recording ? '正在录音...' : '准备就绪';
 }
 
 function setStatus(msg) {
@@ -54,52 +59,51 @@ function setStatus(msg) {
 }
 
 // ── Recordings list ───────────────────────────────────────────────────────────
-function addRecordingToList(entry) {
-  const li = document.createElement('li');
+function addToList(entry) {
+  emptyHint.style.display = 'none';
+
+  const li   = document.createElement('li');
   li.className = 'recording-item';
 
-  const durationSec = Math.round(entry.duration / 1000);
   const info = document.createElement('span');
-  info.className = 'recording-info';
-  info.textContent = `${entry.name}  (${formatTime(durationSec)})`;
+  info.className   = 'recording-info';
+  info.textContent = `${entry.name}  (${fmt(Math.round(entry.duration / 1000))})`;
 
-  // Play button
   const btnPlay = document.createElement('button');
   btnPlay.textContent = '▶ 播放';
-  btnPlay.className = 'btn-small';
-  btnPlay.addEventListener('click', () => {
+  btnPlay.className   = 'btn-small';
+  btnPlay.onclick = () => {
     const audio = new Audio(`data:${entry.mimeType};base64,${entry.base64}`);
     audio.play();
-  });
+  };
 
-  // Save button — writes to Documents and opens share sheet so user can save to Files app
   const btnSave = document.createElement('button');
   btnSave.textContent = '💾 保存';
-  btnSave.className = 'btn-small btn-save';
-  btnSave.addEventListener('click', () => saveRecording(entry));
+  btnSave.className   = 'btn-small btn-save';
+  btnSave.onclick = () => saveRecording(entry);
 
-  li.appendChild(info);
-  li.appendChild(btnPlay);
-  li.appendChild(btnSave);
-  recordingsList.appendChild(li);
+  li.append(info, btnPlay, btnSave);
+  recList.appendChild(li);
 }
 
+// ── Save via share sheet ──────────────────────────────────────────────────────
 async function saveRecording(entry) {
+  const plugins = getPlugins();
+  if (!plugins) { setStatus('原生功能不可用'); return; }
+
   try {
     setStatus('正在保存...');
 
-    // Write to app's Documents directory
-    const result = await Filesystem.writeFile({
-      path: entry.name,
-      data: entry.base64,
-      directory: Directory.Documents,
+    const { uri } = await plugins.Filesystem.writeFile({
+      path:      entry.name,
+      data:      entry.base64,
+      directory: 'DOCUMENTS',
       recursive: true,
     });
 
-    // Open iOS share sheet so user can save to Files / AirDrop / etc.
-    await Share.share({
-      title: entry.name,
-      url: result.uri,
+    await plugins.Share.share({
+      title:      entry.name,
+      url:        uri,
       dialogTitle: '保存录音文件',
     });
 
@@ -112,20 +116,20 @@ async function saveRecording(entry) {
 
 // ── Permission ────────────────────────────────────────────────────────────────
 async function ensurePermission() {
-  const { value: canRecord } = await VoiceRecorder.canDeviceVoiceRecord();
-  if (!canRecord) {
-    setStatus('此设备不支持录音');
+  const plugins = getPlugins();
+  if (!plugins) {
+    setStatus('原生功能不可用（请在 iOS 设备上运行）');
     return false;
   }
 
-  const { value: hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
-  if (hasPermission) return true;
+  const { value: canRecord } = await plugins.VoiceRecorder.canDeviceVoiceRecord();
+  if (!canRecord) { setStatus('此设备不支持录音'); return false; }
 
-  const { value: granted } = await VoiceRecorder.requestAudioRecordingPermission();
-  if (!granted) {
-    setStatus('麦克风权限被拒绝，请在设置中开启');
-    return false;
-  }
+  const { value: hasPerm } = await plugins.VoiceRecorder.hasAudioRecordingPermission();
+  if (hasPerm) return true;
+
+  const { value: granted } = await plugins.VoiceRecorder.requestAudioRecordingPermission();
+  if (!granted) { setStatus('麦克风权限被拒绝，请在设置中开启'); return false; }
   return true;
 }
 
@@ -134,12 +138,13 @@ async function startRecording() {
   const ok = await ensurePermission();
   if (!ok) return;
 
+  const plugins = getPlugins();
   try {
-    await VoiceRecorder.startRecording();
+    await plugins.VoiceRecorder.startRecording();
     setRecordingUI(true);
     startTimer();
   } catch (err) {
-    console.error('startRecording error:', err);
+    console.error('startRecording:', err);
     setStatus(`录音启动失败: ${err?.message ?? err}`);
   }
 }
@@ -148,57 +153,55 @@ async function stopRecording() {
   stopTimer();
   setStatus('处理中...');
 
+  const plugins = getPlugins();
   try {
-    const { value } = await VoiceRecorder.stopRecording();
+    const { value } = await plugins.VoiceRecorder.stopRecording();
     setRecordingUI(false);
 
-    if (!value.recordDataBase64) {
-      setStatus('录音数据为空');
-      return;
-    }
+    if (!value.recordDataBase64) { setStatus('录音数据为空'); return; }
 
-    // Derive file extension from mime type
-    const ext = value.mimeType.includes('mp4') || value.mimeType.includes('m4a')
-      ? 'm4a'
-      : 'aac';
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `recording-${timestamp}.${ext}`;
+    const ext = (value.mimeType.includes('mp4') || value.mimeType.includes('m4a')) ? 'm4a' : 'aac';
+    const ts  = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
     const entry = {
-      name: filename,
-      base64: value.recordDataBase64,
+      name:     `recording-${ts}.${ext}`,
+      base64:   value.recordDataBase64,
       mimeType: value.mimeType,
       duration: value.msDuration,
     };
 
     recordings.push(entry);
-    emptyHint.style.display = 'none';
-    addRecordingToList(entry);
+    addToList(entry);
     setStatus('录音完成');
   } catch (err) {
-    console.error('stopRecording error:', err);
+    console.error('stopRecording:', err);
     setRecordingUI(false);
     setStatus(`录音停止失败: ${err?.message ?? err}`);
   }
 }
 
 // ── Interruption listeners ────────────────────────────────────────────────────
-VoiceRecorder.addListener('voiceRecordingInterrupted', () => {
-  stopTimer();
-  setStatus('录音被中断（如来电），点击继续或停止');
-  btnRecord.textContent = '⏹ 停止录音';
-});
+function registerListeners() {
+  const plugins = getPlugins();
+  if (!plugins?.VoiceRecorder) return;
 
-VoiceRecorder.addListener('voiceRecordingInterruptionEnded', () => {
-  setStatus('中断结束，点击停止以保存录音');
-});
+  plugins.VoiceRecorder.addListener('voiceRecordingInterrupted', () => {
+    stopTimer();
+    setStatus('录音被中断（如来电），点击停止以保存');
+    btnRecord.textContent = '⏹';
+  });
 
-// ── Button handler ────────────────────────────────────────────────────────────
+  plugins.VoiceRecorder.addListener('voiceRecordingInterruptionEnded', () => {
+    setStatus('中断结束，点击停止以保存录音');
+  });
+}
+
+// Capacitor 7 在 iOS WebView 中就绪后插件才可用，兜底立即尝试一次
+if (window.Capacitor) {
+  registerListeners();
+}
+
+// ── Button ────────────────────────────────────────────────────────────────────
 btnRecord.addEventListener('click', () => {
-  if (isRecording) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
+  isRecording ? stopRecording() : startRecording();
 });
